@@ -35,10 +35,47 @@
   </div>
 </script>
 
+<script type="text/x-template" id="user-detail">
+  <div>
+    <div class="loading" v-if="loading">読み込み中...</div>
+    <div v-if="error" class="error">
+      {{ error }}
+    </div>
+    <div v-if="user">
+      <h2>{{ user.name }}</h2>
+      <p>{{ user.description }}</p>
+    </div>
+  </div>
+</script>
+
 <script>
+// ユーザ詳細ページ
+var userData = [
+  {
+    id: 1,
+    name: 'Takuya Tejima',
+    description: '東南アジアで働くエンジニアです。'
+  },
+  {
+    id: 2,
+    name: 'Yohei Noda',
+    description: 'アウトドアフットサルが好きなエンジニアです。'
+  },
+]
+
+// この関数を用いて疑似的にWeb API経由で情報を取得したようにする
+var getUser = function (userId, callback){
+  setTimeout(function (){
+    var filteredUsers = userData.filter(function (user){
+      return user.id === parseInt(userId, 10)
+    })
+    callback(null, filteredUsers && filteredUsers[0])
+  }, 1000)
+}
+/* 
 // JSONを返す関数
 // この関数を用いて疑似的にWeb API経由で情報を取得したようにする
-var getUsers = function (callback){
+var getUser = function (callback){
   setTimeout(function () {
     callback(null,[
       {
@@ -51,6 +88,40 @@ var getUsers = function (callback){
       }
     ])
   }, 1000)
+} */
+
+// 詳細ページのコンポーネント
+var UserDetail = {
+  template: '#user-detail',
+  // 初期値のセット
+  data: function(){
+    return{
+      loading:false,
+      user:null,
+      error:null
+    }
+  },
+  created:function(){
+    this.fetchData()
+  },
+  watch:{
+    '$route':'fetchData'
+  },
+
+  methods:{
+    fetchData:function(){
+      this.loading = true
+      // this.$route.params.userId に現在のURL上のパラメータに対応したuserIdが格納される
+      getUser(this.$route.params.userId,(function(err,user){
+        this.loading = false
+        if(err){
+          this.error = err.toString()
+        }else{
+          this.user = user
+        }
+      }).bind(this))
+    }
+  }
 }
 
 // userListを改修
@@ -78,7 +149,7 @@ var UserList = {
       this.loading = true
       // 取得したデータの結果をusersに格納する
       // Function.protetype.bindはthisのスコープを渡すために利用
-      getUsers((function (err, users){
+      getUser((function (err, users){
         this.loading = false
         if (err) {
           this.error = err.toString()
@@ -101,6 +172,16 @@ var router = new VueRouter({
     {
       path: '/users',
       component: UserList
+    },
+    {
+      // ルート定義の追加
+      path: '/users/:new',
+      component: UserCreate
+    },
+    {
+      // ルート定義の追加
+      path: '/users/:userId',
+      component: UserDetail
     }
   ]
 })
@@ -108,12 +189,97 @@ var router = new VueRouter({
 var app = new Vue({
   router:router
 }).$mount('#app')
+
+// 疑似的にAPI経由で情報を更新したようにする
+// 実際のWebアプリケーションではServerへPOSTリクエストを行う
+var postUser = function (params, callback){
+  setTimeout(function(){
+    // idは追加される毎に自動的にincrementされていく
+    params.id = userData.length + 1
+    userData.push(params)
+    callback(null, params)
+  }, 1000)
+}
+
+// 新規ユーザ作成コンポーネント
+var UserCreate = {
+  template: '#user-create',
+  data: function(){
+    return {
+      sending:false,
+      user:this.defaultUser(),
+      error:null
+    }
+  },
+
+  created: function(){
+  },
+
+  methods: {
+    defaultUser: function (){
+      return{
+        name:'',
+        description:''
+      }
+    },
+
+    createUser: function(){
+      // 入力パラメータのバリデーション
+      if(this.user.name.trim()===''){
+        this.error = 'Nameは必須です。'
+        return
+      }
+      if(this.user.description.trim()===''){
+        this.error = 'Descriptionは必須です。'
+        return
+      }
+      postUser(this.user, (function (err, user){
+        this.sending = false
+        if(err){
+          this.error = err.toString()
+        } else{
+          this.error = null
+          // デフォルトでフォームをリセット
+          this.user = this.defaultUser()
+          alert('新規ユーザが登録されました')
+          // ユーザ一覧ページに戻る
+          this.$router.push('/users')
+        }
+      }).bind(this))
+    }
+  }
+}
+
 </script>
 
 <!-- いくつかのテンプレート定義が続く -->
+<!-- ユーザ作成のテンプレート -->
+<script type="text/x-template" id="user-create">
+<div>
+  <div class="sending" v-if="sending">sending...</div>
+  <div>
+    <h2>新規ユーザ作成</h2>
+    <div>
+      <label>名前：</label>
+      <input type="text" v-model="user.name">
+    </div>
+    <div>
+      <label>説明文：</label>
+      <textarea v-model="user.description"></textarea>
+    </div>
+    <div v-if="error" class="error">
+      {{ error }}
+    </div>
+    <div type="button" @click="createUser" value="送信">
+    </div>
+  </div>
+</div>
+</script>
 
 <!-- 任意のJS定義実装 -->
 <script>
+  
+</script>
 // コンポーネントとルート定義からVueインスタンスの生成など
 // ここにコードを書いていく
 </script>
